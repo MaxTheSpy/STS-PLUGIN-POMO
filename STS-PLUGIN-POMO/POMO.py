@@ -6,14 +6,19 @@ from PyQt5.QtGui import QIcon, QPalette, QColor
 import pygame
 
 class PomodoroApp(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, logger=None):
         super().__init__(parent)
+        self.logger = logger or logging.getLogger("POMO_Fallback")  # Use provided logger or fallback
+
         current_dir = os.path.dirname(os.path.abspath(__file__))
         ui_path = os.path.join(current_dir, "POMO.ui")
         if os.path.exists(ui_path):
             uic.loadUi(ui_path, self)
+            self.logger.info("UI file loaded successfully.")
         else:
-            raise FileNotFoundError(f"UI file not found: {ui_path}")
+            error_message = f"UI file not found: {ui_path}"
+            self.logger.error(error_message)
+            raise FileNotFoundError(error_message)
 
         # Initialize configuration, timer, and sound system
         self.config = {}
@@ -28,6 +33,8 @@ class PomodoroApp(QtWidgets.QWidget):
 
         self.setup_ui()
         self.update_lcd()  # Update the LCD to show the default Pomodoro time
+        self.logger.info("PomodoroApp initialized successfully.")
+
 
 
     def setup_ui(self):
@@ -105,7 +112,9 @@ class PomodoroApp(QtWidgets.QWidget):
                     self.is_playing_sound = True
                     pygame.mixer.music.load(sound_path)
                     pygame.mixer.music.play(loops=-1)  # Loop indefinitely
+                    self.logger.info(f"Playing sound: {sound_path}")
             else:
+                self.logger.error(f"Sound file not found: {sound_path}")
                 QtWidgets.QMessageBox.warning(self, "Sound Error", f"Sound file not found: {sound_path}")
 
     def stop_sound(self):
@@ -187,5 +196,20 @@ class SettingsDialog(QtWidgets.QDialog):
             "long_break_time": int(self.line_edit_lbreak.text()) * 60,
         }
 
-def main(parent_widget=None):
-    return PomodoroApp(parent_widget)
+def main(parent_widget=None, parent_logger=None):
+    # If a parent logger is provided, create a child logger for the plugin
+    if parent_logger:
+        plugin_logger = parent_logger.getChild("POMO")
+    else:
+        # Fallback logger in case no parent logger is provided
+        import logging
+        plugin_logger = logging.getLogger("POMO_Fallback")
+
+    # Log the plugin initialization
+    plugin_logger.info("POMO Plugin initialized.")
+
+    # Pass the logger to the PomodoroApp instance
+    app = PomodoroApp(parent_widget, plugin_logger)
+    return app
+
+
